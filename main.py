@@ -1,3 +1,5 @@
+import os
+import uvicorn
 from fastapi import FastAPI
 from typing import List
 from pydantic import BaseModel
@@ -30,6 +32,7 @@ def predict_batch(data: BatchInputData):
     expected_features = 6
     error_messages = []
 
+    # Validar cada conjunto de datos
     for idx, dataset in enumerate(data.datasets, start=1):
         if len(dataset) != expected_features:
             error_messages.append(f"La hilera {idx} tiene {len(dataset)} entradas, se esperaba {expected_features}.")
@@ -37,16 +40,24 @@ def predict_batch(data: BatchInputData):
     if error_messages:
         return {"error": error_messages}
 
+    # Convertir la entrada a un array NumPy
     input_data = np.array(data.datasets)
     input_poly = poly.transform(input_data)
     input_scaled = scaler.transform(input_poly)
     predictions = model.predict(input_scaled)
 
+    # Devolver las predicciones
     return {
         "Predicciones": f"La predicción para el conjunto de datos entregados es {sum(predictions.flatten().tolist())} MwH."
     }
 
-# --- Punto de entrada ---
+# --- Endpoint de prueba ---
+@app.get("/")
+def read_root():
+    return {"mensaje": "La API está funcionando correctamente en Render."}
+
+# --- Punto de entrada para iniciar la aplicación ---
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))  # Usar la variable PORT proporcionada por Render
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
+
